@@ -469,6 +469,7 @@ main(int argc, char * argv[])
     int             fd_of_master    = -1;
     int             fdw_sel         = -1;
 
+    // futex の初期化をする
     err = mini_exp_initialize();
     if(err)
     {
@@ -479,11 +480,18 @@ main(int argc, char * argv[])
     int             v               = *Lock_key;
     int             v2              = *Lock_key2;
 
+    // 図の「Script」スレッドを起動させる.
     mini_exp_invoke_select();
 
+    // 図の「Script」「bash」間で、図の「Terminal」や「Pseudo pty master」「Pseudo pty slave」
+    // への書き込みをタイミングを取るための制御変数 (futex) をセットアップする.
     MINI_EXP_WAIT_FOR_SETUP(Lock_key, v, NULL);
+
+    // 図の「Pseudo terminal master」と「Pseudo terminal slave」を作成する.
+    // また、「mini_expect で自動処理させたい実行ファイル」(図の「bash」に相当) を起動させる.
     mini_exp_spawn_cmd(argc, argv);
 
+    // 図の「Script」のファイルディスクリプタを取得する.
     fdw_sel = MINI_EXP_get_select_fdw();
     wc = write(fdw_sel, "\0", 1);
     if(wc == -1)
@@ -492,9 +500,12 @@ main(int argc, char * argv[])
         exit(59);
     }
 
+    // 図の「Pseudo terminal master」のファイルディスクリプタを取得する.
     fd_of_master =  MINI_EXP_get_master_fd();
 
     MINI_EXP_WAIT_ONLY(Lock_key, v, NULL);
+
+    // 図の「Script」と「Pseudo terminal master」とのやりとりをする
     mini_exp_expectl(fd_of_master, fdw_sel, v, v2);
 
     /* not reach (robozushi10) */
